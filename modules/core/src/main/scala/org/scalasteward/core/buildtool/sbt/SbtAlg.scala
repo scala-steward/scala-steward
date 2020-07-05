@@ -25,7 +25,7 @@ import org.scalasteward.core.application.Config
 import org.scalasteward.core.buildtool.BuildToolAlg
 import org.scalasteward.core.buildtool.sbt.command._
 import org.scalasteward.core.buildtool.sbt.data.SbtVersion
-import org.scalasteward.core.data.{Dependency, Resolver, Scope}
+import org.scalasteward.core.data.{Resolver, Scope}
 import org.scalasteward.core.io.{FileAlg, FileData, ProcessAlg, WorkspaceAlg}
 import org.scalasteward.core.scalafix.Migration
 import org.scalasteward.core.util.{BracketThrowable, Nel}
@@ -38,8 +38,13 @@ trait SbtAlg[F[_]] extends BuildToolAlg[F] {
 
   def getSbtVersion(repo: Repo): F[Option[SbtVersion]]
 
-  final def getSbtDependency(repo: Repo)(implicit F: Functor[F]): F[Option[Dependency]] =
-    OptionT(getSbtVersion(repo)).subflatMap(sbtDependency).value
+  final def getScopedSbtDependency(
+      repo: Repo
+  )(implicit F: Functor[F]): F[Option[Scope.Dependencies]] =
+    OptionT(getSbtVersion(repo))
+      .subflatMap(sbtDependency)
+      .map(dep => Scope.withMavenCentral(List(dep)))
+      .value
 }
 
 object SbtAlg {
@@ -82,8 +87,8 @@ object SbtAlg {
           commands = List(setOffline, crossStewardDependencies, reloadPlugins, stewardDependencies)
           lines <- exec(sbtCmd(commands), repoDir)
           dependencies = parser.parseDependencies(lines)
-          additionalDependencies <- getAdditionalDependencies(repo)
-        } yield additionalDependencies ::: dependencies
+          maybeSbtDependency <- getScopedSbtDependency(repo)
+        } yield maybeSbtDependency.toList ::: dependencies
 
       override def runMigrations(repo: Repo, migrations: Nel[Migration]): F[Unit] =
         addGlobalPluginTemporarily(scalaStewardScalafixSbt) {
@@ -115,9 +120,5 @@ object SbtAlg {
             fa
           }
         }
-
-      def getAdditionalDependencies(repo: Repo): F[List[Scope.Dependencies]] =
-        getSbtDependency(repo)
-          .map(_.map(dep => Scope(List(dep), List(Resolver.mavenCentral))).toList)
     }
 }

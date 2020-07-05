@@ -37,6 +37,9 @@ object Scope {
       case (resolvers, group) => Scope(group.reduceMap(_.value).distinct.sorted, resolvers)
     }
 
+  def withMavenCentral[A](value: A): Scope[A] =
+    Scope(value, List(Resolver.mavenCentral))
+
   implicit def scopeTraverse: Traverse[Scope] =
     new Traverse[Scope] {
       override def traverse[G[_]: Applicative, A, B](fa: Scope[A])(f: A => G[B]): G[Scope[B]] =

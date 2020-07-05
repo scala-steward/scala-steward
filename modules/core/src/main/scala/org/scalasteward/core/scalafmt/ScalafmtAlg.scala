@@ -16,18 +16,22 @@
 
 package org.scalasteward.core.scalafmt
 
-import cats.data.Nested
+import cats.data.OptionT
 import cats.implicits._
 import cats.{Functor, Monad}
-import org.scalasteward.core.data.{Dependency, Version}
+import org.scalasteward.core.data.{Dependency, Resolver, Scope, Version}
 import org.scalasteward.core.io.{FileAlg, WorkspaceAlg}
 import org.scalasteward.core.vcs.data.Repo
 
 trait ScalafmtAlg[F[_]] {
   def getScalafmtVersion(repo: Repo): F[Option[Version]]
 
-  final def getScalafmtDependency(repo: Repo)(implicit F: Functor[F]): F[Option[Dependency]] =
-    Nested(getScalafmtVersion(repo)).map(scalafmtDependency).value
+  final def getScopedScalafmtDependency(
+      repo: Repo
+  )(implicit F: Functor[F]): F[Option[Scope.Dependencies]] =
+    OptionT(getScalafmtVersion(repo))
+      .map(version => Scope.withMavenCentral(List(scalafmtDependency(version))))
+      .value
 }
 
 object ScalafmtAlg {

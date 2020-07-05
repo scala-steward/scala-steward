@@ -21,7 +21,7 @@ import cats.implicits._
 import org.scalasteward.core.buildtool.maven.MavenAlg
 import org.scalasteward.core.buildtool.mill.MillAlg
 import org.scalasteward.core.buildtool.sbt.SbtAlg
-import org.scalasteward.core.data.{Resolver, Scope}
+import org.scalasteward.core.data.Scope
 import org.scalasteward.core.scalafix.Migration
 import org.scalasteward.core.scalafmt.ScalafmtAlg
 import org.scalasteward.core.util.Nel
@@ -47,8 +47,8 @@ object BuildToolDispatcher {
       override def getDependencies(repo: Repo): F[List[Scope.Dependencies]] =
         for {
           dependencies <- foundBuildTools(repo).flatMap(_.flatTraverse(_.getDependencies(repo)))
-          additionalDependencies <- getAdditionalDependencies(repo)
-        } yield Scope.combineByResolvers(additionalDependencies ::: dependencies)
+          maybeScalafmtDependency <- scalafmtAlg.getScopedScalafmtDependency(repo)
+        } yield Scope.combineByResolvers(maybeScalafmtDependency.toList ::: dependencies)
 
       override def runMigrations(repo: Repo, migrations: Nel[Migration]): F[Unit] =
         foundBuildTools(repo).flatMap(_.traverse_(_.runMigrations(repo, migrations)))
@@ -58,11 +58,6 @@ object BuildToolDispatcher {
           case Nil  => List(fallbackBuildTool)
           case list => list
         }
-
-      def getAdditionalDependencies(repo: Repo): F[List[Scope.Dependencies]] =
-        scalafmtAlg
-          .getScalafmtDependency(repo)
-          .map(_.map(dep => Scope(List(dep), List(Resolver.mavenCentral))).toList)
     }
   }
 }

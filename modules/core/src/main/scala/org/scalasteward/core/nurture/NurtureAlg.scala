@@ -154,7 +154,7 @@ final class NurtureAlg[F[_]](config: ForgeCfg)(implicit
       gitAlg.branchExists(repo, remoteBranch).ifM(gitAlg.deleteRemoteBranch(repo, branch), F.unit)
     }
 
-  private def applyNewUpdate(data: UpdateData): F[ProcessResult] =
+  private[nurture] def applyNewUpdate(data: UpdateData): F[ProcessResult] =
     gitAlg.returnToCurrentBranch(data.repo) {
       val createBranch = logger.info(s"Create branch ${data.updateBranch.name}") >>
         gitAlg.createBranch(data.repo, data.updateBranch)
@@ -283,7 +283,10 @@ final class NurtureAlg[F[_]](config: ForgeCfg)(implicit
     result.flatMap { case (update, msg) => logger.info(msg).as(update) }
   }
 
-  private def resetAndApplyAgain(number: PullRequestNumber, data: UpdateData): F[ProcessResult] =
+  private[nurture] def resetAndApplyAgain(
+      number: PullRequestNumber,
+      data: UpdateData
+  ): F[ProcessResult] =
     for {
       _ <- logger.info(
         s"Reset ${data.updateBranch.name} to ${data.baseBranch.name} and apply again"

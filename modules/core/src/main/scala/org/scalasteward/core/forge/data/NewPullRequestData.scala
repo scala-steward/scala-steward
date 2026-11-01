@@ -148,11 +148,12 @@ object NewPullRequestData {
     update match {
       case single: Update.Single   => single
       case grouped: Update.Grouped =>
-        val editedArtifacts = edits.flatMap {
-          case EditAttempt.UpdateEdit(edited, _) =>
+        val editedArtifacts = edits
+          .collect { case EditAttempt.UpdateEdit(edited, _) =>
             edited.forArtifactIds.toList.map(_.groupAndMainArtifactId)
-          case _ => List.empty
-        }.toSet
+          }
+          .flatten
+          .toSet
         grouped.copy(updates =
           grouped.updates.filter(update => editedArtifacts(update.groupAndMainArtifactId))
         )

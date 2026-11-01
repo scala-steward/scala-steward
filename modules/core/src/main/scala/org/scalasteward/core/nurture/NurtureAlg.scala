@@ -161,7 +161,7 @@ final class NurtureAlg[F[_]](config: ForgeCfg)(implicit
       data.update
         .on(
           update = editAlg.applyUpdate(data.repoData, _, createBranch),
-          grouped = createBranch >> _.updates.flatTraverse(editAlg.applyUpdate(data.repoData, _))
+          grouped = createBranch >> editAlg.applyGroupedUpdate(data.repoData, _)
         )
         .flatMap { edits =>
           val editCommits = edits.flatMap(_.commits)
@@ -291,7 +291,7 @@ final class NurtureAlg[F[_]](config: ForgeCfg)(implicit
       _ <- gitAlg.resetHard(data.repo, data.baseBranch)
       edits <- data.update.on(
         update = editAlg.applyUpdate(data.repoData, _),
-        grouped = _.updates.flatTraverse(editAlg.applyUpdate(data.repoData, _))
+        grouped = editAlg.applyGroupedUpdate(data.repoData, _)
       )
       editCommits = edits.flatMap(_.commits)
       result <- pushCommits(data, editCommits)
